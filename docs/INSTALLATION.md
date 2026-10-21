@@ -262,6 +262,18 @@ sqlite3 (Join-Path $env:ENGRAM_DATA_DIR 'engram.db') 'PRAGMA integrity_check;'
 
 Engram does not auto-repair, quarantine, checkpoint, or use rollback journaling as a fallback.
 
+### Accepting a network data directory
+
+Some environments have no local alternative: an institutional cluster whose home is NFS, a shared research pool where every account mounts the same storage, or a container whose only writable volume is a network mount. In those setups, pointing `ENGRAM_DATA_DIR` at `/tmp` is often worse than the risk it avoids, because `/tmp` is wiped on reboot, purged by periodic cleanup, and isolated per node.
+
+Set `ENGRAM_ALLOW_UNSAFE_NFS=1` to accept the risk explicitly. The startup check then logs a warning to stderr and continues instead of refusing the directory:
+
+```bash
+export ENGRAM_ALLOW_UNSAFE_NFS=1
+```
+
+The variable is an opt-in, not a mode: it must be exactly `1` to take effect, and any other value — including `0` — keeps the rejection in place. It does not change how the data directory is created, and it does not make the storage safe: persistent SQLite WAL on a network filesystem can still corrupt the database under concurrent access or a mid-write failure, and a wiped mount takes the memories with it. Prefer a local disk whenever one exists.
+
 ---
 
 ## Environment Variables
@@ -269,6 +281,7 @@ Engram does not auto-repair, quarantine, checkpoint, or use rollback journaling 
 | Variable | Description | Default |
 |---|---|---|
 | `ENGRAM_DATA_DIR` | Engram CLI data directory. Empty or whitespace-only values use the platform default; nonblank values are used as provided. | `~/.engram` (Windows: `%USERPROFILE%\.engram`) |
+| `ENGRAM_ALLOW_UNSAFE_NFS` | Opt-in acceptance of a network filesystem as the data directory. Set to exactly `1` to skip the NFS and SMB/CIFS startup rejection and log a warning instead. Any other value keeps the rejection. | (unset) |
 | `ENGRAM_PORT` | HTTP server port. Use an unsigned decimal value from `1` through `65535`; invalid values fall back to `7437` in `engram serve` and Claude Bash hooks. | `7437` |
 | `ENGRAM_SOCKET` | POSIX-only Unix-domain socket path. Run `engram serve --socket /path/to/engram.sock` (or set `ENGRAM_SOCKET`) to listen exclusively on the socket; do not combine it with an explicit TCP port. Claude Bash hooks use the same socket when the variable is exported and warn on stderr if socket transport cannot preserve memory capture. PowerShell remains TCP-only. | (unset) |
 
