@@ -157,7 +157,7 @@ or speculation. Never save secrets, credentials, private content, or personal da
 
 Format for \`mem_save\`:
 - **title**: Verb + what — short, searchable
-- **type**: bugfix | decision | architecture | discovery | pattern | config | preference
+- **type**: bugfix | decision | architecture | discovery | pattern | config | preference | policy
 - **scope**: \`project\` (default) | \`personal\` | \`global\`
 - **topic_key**: stable, deliberate key for the topic; reuse via \`mem_update\` rather than duplicating
 - **content**:

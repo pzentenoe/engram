@@ -1412,7 +1412,7 @@ Stored prompts may include agent-authored child-session tasks. Project/session I
 Save structured observations. The tool description teaches agents the format:
 
 - **title**: Short, searchable (e.g. "JWT auth middleware")
-- **type**: `decision` | `architecture` | `bugfix` | `pattern` | `config` | `discovery` | `learning`
+- **type**: `decision` | `architecture` | `bugfix` | `pattern` | `config` | `discovery` | `preference` | `policy` | `learning`
 - **scope**: `project` (default) | `personal` | `global` — see [Team Usage](docs/TEAM-USAGE.md) for conventions and sync caveats
 - **topic_key**: optional canonical topic id (e.g. `architecture/auth-model`) used to upsert evolving memories
 - **capture_prompt**: optional boolean in MCP and native Pi; omission defaults to `true`. In MCP, present non-boolean values (including `"false"`, numbers, and `null`) return the exact tool error `capture_prompt must be a boolean` before project resolution or any session, observation, or prompt write; when the runtime supplies current prompt context for the same project/session, shared Go policy best-effort stores a deduplicated independent prompt row. Missing context or a capture error does not fail `mem_save`. `false` skips only this save's attempt; it does not disable Pi lifecycle capture or delete existing prompts.
@@ -1705,7 +1705,7 @@ discovery, or convention needs saving; if so, call `mem_save` now.
 Format for `mem_save`:
 
 - **title**: Verb + what — short, searchable (e.g. "Fixed N+1 query in UserList", "Chose Zustand over Redux")
-- **type**: `bugfix` | `decision` | `architecture` | `discovery` | `pattern` | `config` | `preference`
+- **type**: `bugfix` | `decision` | `architecture` | `discovery` | `pattern` | `config` | `preference` | `policy`
 - **scope**: `project` (default) | `personal` | `global`
 - **topic_key** (optional, recommended for evolving decisions): stable key like `architecture/auth-model`
 - **content**:

@@ -445,6 +445,18 @@ var decayReviewAfterMonths = map[string]int{
 	"bugfix":       decayPolicyMonths,
 }
 
+// DefaultReviewAfterTypes returns the observation types that carry a default
+// review window, sorted. The agent-facing memory protocol lists the same set,
+// so a keyed type is never unreachable from the agent side.
+func DefaultReviewAfterTypes() []string {
+	types := make([]string, 0, len(decayReviewAfterMonths))
+	for observationType := range decayReviewAfterMonths {
+		types = append(types, observationType)
+	}
+	sort.Strings(types)
+	return types
+}
+
 // Legacy sync payloads without review_after retain their original derivation
 // contract. New local defaults must not reinterpret imported historical records.
 var legacySyncReviewAfterMonths = map[string]int{
