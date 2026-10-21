@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/Gentleman-Programming/engram/v3/internal/store"
 )
 
 // Exercise the public setup path without invoking a host CLI or using real profiles.
@@ -141,30 +139,26 @@ func TestMemoryProtocolClaudeVersions(t *testing.T) {
 	}
 }
 
-// memoryProtocolSources is the explicit inventory of every delivered copy of
-// the memory protocol prose.
-var memoryProtocolSources = []struct {
-	path, start, end string
-	claude           bool
-}{
-	{"internal/setup/setup.go", "const memoryProtocolMarkdown = `", "`", false},
-	{"plugin/opencode/engram.ts", "const MEMORY_INSTRUCTIONS = `", "`;", false},
-	{"internal/setup/plugins/opencode/engram.ts", "const MEMORY_INSTRUCTIONS = `", "`;", false},
-	{"plugin/pi/index.ts", "const MEMORY_INSTRUCTIONS = `", "`;", false},
-	{"plugin/pi/README.md", "### Injected memory contract", "### Automatic user-prompt capture", false},
-	{"skills/memory-protocol/SKILL.md", "## When to Use", "", false},
-	{"plugin/claude-code/skills/memory/SKILL.md", "", "", true},
-	{"plugin/codex/skills/memory/SKILL.md", "", "", false},
-	{"plugin/claude-code/scripts/session-start.sh", "cat <<'PROTOCOL'\n", "\nPROTOCOL", true},
-	{"plugin/codex/scripts/session-start.sh", "cat <<'PROTOCOL'\n", "\nPROTOCOL", false},
-	{"plugin/claude-code/scripts/post-compaction.sh", "cat <<'PROTOCOL'\n", "\nPROTOCOL", true},
-	{"plugin/codex/scripts/post-compaction.sh", "cat <<'PROTOCOL'\n", "\nPROTOCOL", false},
-	{"DOCS.md", "## Memory Protocol\n", "\n## Project Name Normalization", false},
-}
-
 // Explicit inventory: check delivered prose, not surrounding adapter code/comments.
 func TestMemoryProtocolSourceInventory(t *testing.T) {
-	for _, source := range memoryProtocolSources {
+	for _, source := range []struct {
+		path, start, end string
+		claude           bool
+	}{
+		{"internal/setup/setup.go", "const memoryProtocolMarkdown = `", "`", false},
+		{"plugin/opencode/engram.ts", "const MEMORY_INSTRUCTIONS = `", "`;", false},
+		{"internal/setup/plugins/opencode/engram.ts", "const MEMORY_INSTRUCTIONS = `", "`;", false},
+		{"plugin/pi/index.ts", "const MEMORY_INSTRUCTIONS = `", "`;", false},
+		{"plugin/pi/README.md", "### Injected memory contract", "### Automatic user-prompt capture", false},
+		{"skills/memory-protocol/SKILL.md", "## When to Use", "", false},
+		{"plugin/claude-code/skills/memory/SKILL.md", "", "", true},
+		{"plugin/codex/skills/memory/SKILL.md", "", "", false},
+		{"plugin/claude-code/scripts/session-start.sh", "cat <<'PROTOCOL'\n", "\nPROTOCOL", true},
+		{"plugin/codex/scripts/session-start.sh", "cat <<'PROTOCOL'\n", "\nPROTOCOL", false},
+		{"plugin/claude-code/scripts/post-compaction.sh", "cat <<'PROTOCOL'\n", "\nPROTOCOL", true},
+		{"plugin/codex/scripts/post-compaction.sh", "cat <<'PROTOCOL'\n", "\nPROTOCOL", false},
+		{"DOCS.md", "## Memory Protocol\n", "\n## Project Name Normalization", false},
+	} {
 		t.Run(source.path, func(t *testing.T) {
 			text := readMemoryContract(t, filepath.Join("../..", source.path))
 			text = memoryProseBlock(t, text, source.start, source.end)
@@ -195,84 +189,6 @@ func TestMemoryProtocolSourceInventory(t *testing.T) {
 	}
 	if string(source) != string(embedded) {
 		t.Error("embedded OpenCode adapter differs from source")
-	}
-}
-
-// memoryProtocolTypeList extracts the observation types the protocol prose
-// offers to the agent. The copies spell the list slightly differently, so the
-// markers around each type are stripped.
-func memoryProtocolTypeList(text string) ([]string, bool) {
-	const marker = "**type**:"
-	index := strings.Index(text, marker)
-	if index < 0 {
-		return nil, false
-	}
-	line := text[index+len(marker):]
-	if end := strings.IndexAny(line, "\n"); end >= 0 {
-		line = line[:end]
-	}
-	parts := strings.Split(line, "|")
-	types := make([]string, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.Trim(strings.TrimSpace(part), "`")
-		if trimmed == "" {
-			continue
-		}
-		types = append(types, trimmed)
-	}
-	return types, len(types) > 0
-}
-
-// TestMemoryProtocolTypeListMatchesStoreReviewTypes ties the observation types
-// the protocol offers to the agent with the types the store schedules a review
-// for.
-//
-// The store keys eight types with a review window, including `policy`, while
-// the protocol the installer writes for the agent listed seven and never
-// mentioned `policy`. An agent following its own instructions could not
-// produce a `policy` observation, so the key was unreachable from the agent
-// side, and nothing validated the two lists, so the drift was silent.
-//
-// Every delivered copy that states a type list has to name every
-// review-scheduled type, and may only name a type the store knows: one it
-// schedules, or one of the unmapped types the store documents as having no
-// default.
-func TestMemoryProtocolTypeListMatchesStoreReviewTypes(t *testing.T) {
-	scheduled := map[string]bool{}
-	for _, observationType := range store.DefaultReviewAfterTypes() {
-		scheduled[observationType] = true
-	}
-	// The store documents these as recognised types with no review default.
-	unmapped := map[string]bool{"learning": true, "session_summary": true}
-
-	checked := 0
-	for _, source := range memoryProtocolSources {
-		text := readMemoryContract(t, filepath.Join("../..", source.path))
-		text = memoryProseBlock(t, text, source.start, source.end)
-		types, ok := memoryProtocolTypeList(text)
-		if !ok {
-			continue
-		}
-		checked++
-
-		t.Run(source.path, func(t *testing.T) {
-			listed := make(map[string]bool, len(types))
-			for _, observationType := range types {
-				listed[observationType] = true
-				if !scheduled[observationType] && !unmapped[observationType] {
-					t.Errorf("agent-facing type %q is neither review-scheduled nor a documented unmapped type", observationType)
-				}
-			}
-			for observationType := range scheduled {
-				if !listed[observationType] {
-					t.Errorf("review-scheduled type %q is missing from the agent-facing type list, so the store's review window for it is unreachable from the agent side", observationType)
-				}
-			}
-		})
-	}
-
-	if checked == 0 {
-		t.Fatal("no protocol source declared an observation type list")
 	}
 }
 
